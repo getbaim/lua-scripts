@@ -1,12 +1,4 @@
---[[
-    # Author: linius#0001
-    # Description: blockbot lua for griefing
---]]
-
-local BLOCKBOT_CFG = 'misc_blockbot'
-local FILTER = 1
-
-ui.add_keybind('blockbot key', BLOCKBOT_CFG, 0, 1)
+local misc_blockbot = ui.add_key_bind('blockbot key', 'misc_blockbot', 0, 1)
 
 local font_verdana = renderer.setup_font("C:/windows/fonts/verdana.ttf", 20, 32)
 
@@ -58,8 +50,8 @@ local function on_paint()
 
     if not local_player:is_alive() then return end
 
-    if ui.get_bind_state(BLOCKBOT_CFG) then
-        local players = entitylist.get_players(FILTER)
+    if misc_blockbot:is_active() then
+        local players = entitylist.get_players(1)
 
         for i = 1, #players do
             local entity = players[i]
@@ -80,13 +72,13 @@ local function on_paint()
                 end
             end
         end
-    elseif not ui.get_bind_state(BLOCKBOT_CFG) or not target:is_alive() then
+    elseif not misc_blockbot:is_active() or not target:is_alive() then
         target = nil
     end
 end
 
 local function on_move(cmd)
-    if target and ui.get_bind_state(BLOCKBOT_CFG) then
+    if target and misc_blockbot:is_active() then
         local local_angles = engine.get_view_angles()
         local vec_forward = sub3(target:get_prop_vector(m_vecOrigin), local_player:get_prop_vector(m_vecOrigin))
         local other_yaw = yaw3(vec_forward)

@@ -1,6 +1,6 @@
-ui.add_checkbox('force refresh', 'lobby_refresh', false)
-ui.add_checkbox('auto refresh', 'lobby_auto_refresh', false)
-ui.add_checkbox('mass invite', 'lobby_mass_invite', false)
+local lobby_refresh = ui.add_check_box('force refresh', 'lobby_refresh', false)
+local lobby_auto_refresh = ui.add_check_box('auto refresh', 'lobby_auto_refresh', false)
+local lobby_mass_invite = ui.add_check_box('mass invite', 'lobby_mass_invite', false)
 
 local js = require('panorama')
 local timer = require('timers')
@@ -11,11 +11,10 @@ js.eval([[
 
 local function refresh_nearbies()
     print("Refreshing..")
+    
     js.eval([[
         PartyBrowserAPI.Refresh();
-
         var lobbies = PartyBrowserAPI.GetResultsCount();
-
         for (var lobbyid = 0; lobbyid < lobbies; lobbyid++) {
             var xuid = PartyBrowserAPI.GetXuidByIndex(lobbyid);
             var name = PartyListAPI.GetFriendName(xuid)
@@ -24,7 +23,6 @@ local function refresh_nearbies()
                 $.Msg(`Adding ${name}(${xuid}) to the collection..`);
             }
         }
-
         $.Msg(`Mass invite collection: ${collectedSteamIDS.length}`);
     ]])
 end
@@ -33,15 +31,15 @@ refresh_nearbies()
 
 timer.new_interval(refresh_nearbies, 5000)
 
-client.register_callback('paint_d3d', function ()
-    if ui.get_bool('lobby_refresh') then
-        ui.set_bool('lobby_refresh', false)
+client.register_callback('paint', function ()
+    if lobby_refresh:get_value() then
+        lobby_refresh:set_value(false)
 
         refresh_nearbies()
     end
 
-    if ui.get_bool('lobby_mass_invite') then
-        ui.set_bool('lobby_mass_invite', false)
+    if lobby_mass_invite:get_value() then
+        lobby_mass_invite:set_value(false)
 
         js.eval([[
             collectedSteamIDS.forEach(xuid => {
@@ -50,7 +48,7 @@ client.register_callback('paint_d3d', function ()
         ]])
     end
 
-    if ui.get_bool('lobby_auto_refresh') then
+    if lobby_auto_refresh:get_value() then
         timer.listener()
     end
 end)

@@ -1,5 +1,10 @@
-ui.add_keybind("autopeek key", "misc_autopeek_bind", 0, 2)
-ui.add_combo("render type", "misc_autopeek_render_type", { '3d', '2d (fps)' }, 0)
+local misc_autopeek_bind = ui.add_key_bind("autopeek key", "misc_autopeek_bind", 0, 2)
+local misc_autopeek_render_type = ui.add_combo_box("render type", "misc_autopeek_render_type", { '3d circle', '2d circle' }, 0)
+local radius = ui.add_slider_int('radius', 'misc_autopeek_radius', 1, 30, 20)
+local first_color = ui.add_color_edit('first color', 'misc_autopeek_firstclr', true, color_t.new(0, 0, 0, 110))
+local second_color = ui.add_color_edit('second color', 'misc_autopeek_secondclr', true, color_t.new(0, 255, 0, 110))
+local animation = ui.add_check_box('animation', 'misc_autopeek_animation', true)
+local is_filled = ui.add_check_box('filled', 'misc_autopeek_filled', true)
 
 local m_iHealth = se.get_netvar("DT_BasePlayer", "m_iHealth")
 local m_vecOrigin = se.get_netvar("DT_BaseEntity", "m_vecOrigin")
@@ -13,65 +18,82 @@ local data = nil
 local is_shot = false
 local is_toggled = false
 
-local function draw_line(s_x, s_y, e_x, e_y, color)
-    renderer.line(vec2_t.new(s_x, s_y), vec2_t.new(e_x, e_y), color)
+local function draw_circle_3d(pos, points, radius, clr, filled, filled_clr)
+    local step = math.pi * 2 / points
+
+    local vec_points = {}
+
+    local z = pos.z
+
+    local traceline = trace.line(-1, -1, vec3_t.new(pos.x, pos.y, pos.z+256/2), vec3_t.new(pos.x, pos.y, pos.z-256/2))
+
+    if traceline.fraction > 0 and 1 > traceline.fraction then
+        z = z+256/2-(256 * traceline.fraction)
+    end
+
+    for i = 0.0, math.pi * 2.0, step do
+        local start = vec3_t.new(
+            radius * math.cos(i) + pos.x,
+            radius * math.sin(i) + pos.y,
+            z
+        )
+
+        local start2d = se.world_to_screen(start)
+
+        if start2d then
+            table.insert(vec_points, start2d)
+        end
+    end
+
+    if filled then
+        renderer.filled_polygon(vec_points, filled_clr)
+    end
+
+    for i = 1, #vec_points, 1 do
+        local point = vec_points[i]
+        local next_point = vec_points[i + 1] and vec_points[i + 1] or vec_points[1]
+
+        renderer.line(point, next_point, clr)
+    end
 end
 
-local function draw_ground_circle_3d(vec3, radius, color)
-    local width = 1
-    local percentage = 1
+local _radius = 0
 
-    local screen_x_line_old, screen_y_line_old
-
-    for rot = 0, percentage * 360, 3 do
-        local rot_temp = math.rad(rot)
-
-        local lineX, lineY, lineZ = radius * math.cos(rot_temp) + vec3.x, radius * math.sin(rot_temp) + vec3.y, vec3.z
-        local distance = 256
-
-        local fraction, entindex_hit = trace.line(-1, -1, vec3_t.new(lineX, lineY, lineZ+distance/2), vec3_t.new(lineX, lineY, lineZ-distance/2))
-
-        if fraction > 0 and 1 > fraction then
-            lineZ = lineZ+distance/2-(distance * fraction)
-        end
-
-        local screen = se.world_to_screen(vec3_t.new(lineX, lineY, lineZ))
-
-        if screen.x ~=nil and screen_x_line_old ~= nil then
-            for i=1, width do
-                local i=i-1
-                draw_line(screen.x, screen.y-i, screen_x_line_old, screen_y_line_old-i, color)
-            end
-            if outline then
-                local outline_a = a/255*160
-                draw_line(screen.x, screen.y-width, screen_x_line_old, screen_y_line_old-width, color)
-                draw_line(screen.x, screen.y+1, screen_x_line_old, screen_y_line_old+1, color)
-            end
-        end
-        screen_x_line_old, screen_y_line_old = screen.x, screen.y
-    end
+local function clamp(value, min, max)
+    if value > max then return max end
+    if value < min then return min end
+    return value
 end
 
 local function on_paint()
-    if not is_toggled then return end
+    local max_radius = radius:get_value()
+    
+    if animation:get_value() and is_toggled then
+        _radius = clamp(_radius + 1, 0, max_radius)
+    elseif not animation:get_value() and is_toggled then
+        _radius = max_radius
+    end
+
+    if _radius == 0 then return end
+
+    if not is_toggled and animation:get_value() then
+        _radius = clamp(_radius - 1, 0, max_radius)
+    elseif not is_toggled and not animation:get_value() then
+        _radius = 0
+    end
 
     local pos = se.world_to_screen(data)
 
-    if not is_shot then
-        if ui.get_int('misc_autopeek_render_type') == 0 then
-            draw_ground_circle_3d(data, 25, color_t.new(0, 0, 0, 110))
-        else
-            renderer.circle(pos, 25, 25, true, color_t.new(0, 0, 0, 110))
-        end
-    else
-        if ui.get_int('misc_autopeek_render_type') == 0 then
-            draw_ground_circle_3d(data, 25, color_t.new(0, 255, 0, 50))
-        else
+    if pos.x == nil or pos.y == nil then return end
 
-            renderer.circle(pos, 25, 25, true, color_t.new(0, 255, 0, 50))
-        end
+    local color = is_shot and second_color:get_value() or first_color:get_value()
+
+    if misc_autopeek_render_type:get_value() == 0 then
+        draw_circle_3d(data, 100, _radius, color, is_filled:get_value(), color)
+    else
+        renderer.circle(pos, _radius, 25, is_filled:get_value(), color)
     end
-end
+end 
 
 local time = nil
 
@@ -96,12 +118,12 @@ local function main(user)
     local vec3 = me:get_prop_vector(m_vecOrigin)
     local current_pos = vec3
 
-    if ui.get_bind_state("misc_autopeek_bind") and not is_toggled then
+    if misc_autopeek_bind:is_active() and not is_toggled then
         is_toggled = true
         is_shot = false
 
         data = vec3
-    elseif not ui.get_bind_state("misc_autopeek_bind") and is_toggled then
+    elseif not misc_autopeek_bind:is_active() and is_toggled then
         is_toggled = false
         is_shot = false
     end
@@ -125,8 +147,8 @@ local function main(user)
         user.sidemove = t_velocity.y * 20
 
         velocity = math.sqrt(me:get_prop_float(m_vecVelocity[0]) ^ 2 + me:get_prop_float(m_vecVelocity[1]) ^ 2);
-       
-        if velocity == 0 and globalvars.get_current_time() - time > 0.1 then
+
+        if velocity < 3 and globalvars.get_current_time() - time > 0.5 then
             is_shot = false
         end
     end
@@ -135,4 +157,3 @@ end
 client.register_callback("fire_game_event", on_shot)
 client.register_callback("create_move", main)
 client.register_callback("paint", on_paint)
-

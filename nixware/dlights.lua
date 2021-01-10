@@ -1,4 +1,6 @@
-local helper = require('ffi_helper')
+
+
+local helper = require 'ffi_helper'
 
 local m_vecOrigin = se.get_netvar("DT_BaseEntity", "m_vecOrigin")
 
@@ -47,21 +49,21 @@ local function draw(settings, elight)
     light.direction.z = settings.pos.z
     light.origin.x = settings.pos.x
     light.origin.y = settings.pos.y
-    light.origin.z = settings.pos.z 
+    light.origin.z = settings.pos.z
     light.radius = settings.radius
     light.die = globalvars.get_current_time() + 0.1
     light.decay = settings.radius / 5
 end
 
-ui.add_checkbox('enable dlights', 'dlight_enable', false)
-ui.add_color_edit('color dlights', 'dlight_color', false, color_t.new(255, 255, 255, 255))
-ui.add_slider_int('radius dlights', 'dlight_radius', 0, 250, 1)
-ui.add_slider_int('style dlights', 'dlight_style', 1, 11, 1)
+local dlight_enable = ui.add_check_box('enable dlights', 'dlight_enable', false)
+local dlight_color = ui.add_color_edit('color dlights', 'dlight_color', false, color_t.new(255, 255, 255, 255))
+local dlight_radius = ui.add_slider_int('radius dlights', 'dlight_radius', 0, 250, 1)
+local dlight_style = ui.add_slider_int('style dlights', 'dlight_style', 1, 11, 1)
 
-ui.add_checkbox('enable elights', 'elight_enable', false)
-ui.add_color_edit('color elights', 'elight_color', false, color_t.new(255, 255, 255, 255))
-ui.add_slider_int('radius elights', 'elight_radius', 0, 250, 1)
-ui.add_slider_int('style elights', 'elight_style', 1, 11, 1)
+local elight_enable = ui.add_check_box('enable elights', 'elight_enable', false)
+local elight_color = ui.add_color_edit('color elights', 'elight_color', false, color_t.new(255, 255, 255, 255))
+local elight_radius = ui.add_slider_int('radius elights', 'elight_radius', 0, 250, 1)
+local elight_style = ui.add_slider_int('style elights', 'elight_style', 1, 11, 1)
 
 local function on_paint()
     if not engine.is_in_game() then return end
@@ -69,18 +71,18 @@ local function on_paint()
     local players = entitylist.get_players(2)
 
     local dlight = {
-        enable = ui.get_bool('dlight_enable'),
-        color = ui.get_color('dlight_color'),
-        radius = ui.get_int('dlight_radius'),
-        style = ui.get_int('dlight_style')
+        enable = dlight_enable:get_value(),
+        color = dlight_color:get_value(),
+        radius = dlight_radius:get_value(),
+        style = dlight_style:get_value()
     }
 
     local elight = {
-        enable = ui.get_bool('elight_enable'),
-        color = ui.get_color('elight_color'),
-        radius = ui.get_int('elight_radius'),
-        style = ui.get_int('elight_style')
-    } 
+        enable = elight_enable:get_value(),
+        color = elight_color:get_value(),
+        radius = elight_radius:get_value(),
+        style = elight_style:get_value()
+    }
 
     for i = 1, #players do
         local player = players[i]
@@ -117,3 +119,4 @@ local function on_paint()
 end
 
 client.register_callback('paint', on_paint)
+

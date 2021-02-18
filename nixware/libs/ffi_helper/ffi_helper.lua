@@ -67,6 +67,26 @@ function interface_mt.get_vfunc(self, index, tdef)
     error('get_vfunc: thisptr is invalid')
 end
 
+function interface_mt.find_pattern(self, signature, tdef)
+    local thisptr = self[1]
+    local module = self[2]
+    if is_valid_ptr(thisptr) then 
+        local match = client.find_pattern(module, signature)
+        if is_valid_ptr(match) then 
+            local typedef = check_or_create_typedef(tdef)
+            local fn = ffi.cast(typedef, match)
+            if is_valid_ptr(fn) then 
+                return function(...)
+                    return fn(thisptr, ...)
+                end
+            end
+            error("find_pattern: couldnt cast function ("..tdef..")")
+        end
+        error("find_pattern: couldn't find signature '" .. signature .. "'")
+    end
+    error("get_vfunc: thisptr is invalid")
+end
+
 function helper_mt.find_interface(module, interface)
     local iface = se.create_interface(module, interface)
     if is_valid_ptr(iface) then
@@ -86,6 +106,53 @@ function helper_mt.get_class(raw, module)
         end
     end
     error("get_class: argument is nullptr")
+end
+
+function helper_mt.find_pattern(module, signature, tdef, offset)
+    local match = client.find_pattern(module, signature)
+    if is_valid_ptr(match) then 
+        if offset then 
+            match = ffi.cast("char*", match) + offset
+            if not is_valid_ptr(match) then
+                error("find_pattern: adding offset ("..offset..") returned nullptr", 2)
+            end
+        end
+        local typedef = check_or_create_typedef(tdef)
+        local fn = ffi.cast(typedef, match)
+        if is_valid_ptr(fn) then
+            return fn
+        end
+        error("find_pattern: couldnt cast function ("..tdef..")")
+    end
+    error("find_pattern: couldnt find signature ("..signature..")")
+end
+
+function helper_mt.find_pattern_as_function(module, signature, tdef, interface)
+    local iface = nil
+    if interface ~= nil then 
+        iface = client.find_pattern(module, interface)
+        if not is_valid_ptr(iface) then 
+            error("find_pattern_as_function: couldnt create interface (" .. module .. " | " .. interface .. ")")
+        end
+    end
+    local match = utils_find_pattern(module, signature)
+    if is_valid_ptr(match) then 
+        local typedef = check_or_create_typedef(tdef)
+        local fn = ffi.cast(typedef, match)
+        if is_valid_ptr(fn) then
+            if iface then 
+                return function(...)
+                    return fn(iface, ...)
+                end
+            else
+                return function(...)
+                    return fn(...)
+                end
+            end
+        end
+        error("find_pattern_as_function: couldnt cast function ("..tdef..")")
+    end
+    error("find_pattern_as_function: couldnt find signature ("..signature..")")
 end
 
 return helper_mt

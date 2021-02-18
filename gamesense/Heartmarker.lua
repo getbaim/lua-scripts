@@ -31,42 +31,26 @@ local function draw_heart(x, y, r, g, b, a)
 	rectangle(x, y + 4, 2, 2, 254, 199, 199, a)
 end
 
-local hearts_saved = {}
 local hearts = {}
 
-local function on_fire(e)
-    table.insert(hearts_saved, {
-        id = e.id,
-        position = { x = e.x, y = e.y, z = e.z },
+local function on_player_hurt(event)
+    if not ui.get(is_enabled) then return end
+
+    local ent_target = client.userid_to_entindex(event.userid)
+    local ent_attacker = client.userid_to_entindex(event.attacker)
+    local ent_lplayer = entity.get_local_player()
+
+    if ent_attacker ~= ent_lplayer or event.attacker == event.userid then return end
+
+    local x, y, z = entity.get_prop(ent_target, 'm_vecOrigin')
+    local time = globals.realtime()
+
+    table.insert(hearts, {
+        position = { x = x, y = y, z = z + 50 },
+        damage = event.dmg_health,
+        start_time = time,
+        frame_time = time
     })
-end
-
-local function on_hit(e)
-    for i = 1, #hearts_saved do
-        if hearts_saved[i] == nil then return end
-
-        if hearts_saved[i].id == e.id then
-            local time = globals.realtime()
-
-            table.insert(hearts, {
-                position = hearts_saved[i].position,
-                damage = e.damage,
-                start_time = time,
-                frame_time = time
-            })
-
-            table.remove(hearts_saved, i)
-        end
-    end
-end
-
-local function on_miss(e)
-    for i = 1, #hearts_saved do
-        if hearts_saved[i] == nil then return end
-        if hearts_saved[i].id == e.id then
-            table.remove(hearts_saved, i)
-        end
-    end
 end
 
 local function on_render()
@@ -106,7 +90,5 @@ local function on_render()
     end
 end
 
-client.set_event_callback('aim_fire', on_fire)
-client.set_event_callback('aim_hit', on_hit)
-client.set_event_callback('aim_miss', on_miss)
+client.set_event_callback('player_hurt', on_player_hurt)
 client.set_event_callback('paint', on_render)
